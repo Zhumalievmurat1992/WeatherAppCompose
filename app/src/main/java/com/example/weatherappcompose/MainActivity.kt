@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.example.weatherappcompose.data.WeatherModel
+import com.example.weatherappcompose.screen.DialogSearch
 import com.example.weatherappcompose.screen.MainCard
 import com.example.weatherappcompose.screen.TabLayout
 import com.example.weatherappcompose.ui.theme.WeatherAppComposeTheme
@@ -28,12 +29,36 @@ const val API_KEY = "af6d3f9a595247ae806171940231106"
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             WeatherAppComposeTheme {
+                val currentDay = remember {
+                    mutableStateOf(
+                        WeatherModel(
+                            "",
+                            "",
+                            "0.0",
+                            "",
+                            "",
+                            "0.0",
+                            "0.0",
+                            ""
+                        )
+                    )
+                }
                 val daysList = remember {
                     mutableStateOf(listOf<WeatherModel>())
                 }
-                getData("London", this,daysList)
+                val dialogState = remember {
+                    mutableStateOf(false)
+                }
+                    if (dialogState.value){
+                        DialogSearch(dialogState, onSubmit = {
+                            getData(it, this,daysList,currentDay)
+                        })
+                    }
+
+                getData("Bishkek", this,daysList,currentDay)
                 Image(
                     painter = painterResource(id = R.drawable.img), contentDescription = "img",
                     modifier = Modifier
@@ -42,15 +67,21 @@ class MainActivity : ComponentActivity() {
                     contentScale = ContentScale.FillBounds
                 )
                 Column {
-                    MainCard()
-                    TabLayout(daysList)
+                    MainCard(currentDay, onClickSync = {
+                        getData("Bishkek", this@MainActivity,daysList,currentDay)
+                    }, onClickSearch = {
+                        dialogState.value = true
+                    } )
+                    TabLayout(daysList,currentDay)
                 }
             }
         }
     }
 }
 
-private fun getData(city: String, context: Context,daysList: MutableState<List<WeatherModel>>) {
+private fun getData(city: String, context: Context,
+                    daysList: MutableState<List<WeatherModel>>,
+                    currentDay: MutableState<WeatherModel>) {
     val url = "https://api.weatherapi.com/v1/forecast.json?key=$API_KEY" +
             "&q=$city" +
             "&days=" +
@@ -63,6 +94,7 @@ private fun getData(city: String, context: Context,daysList: MutableState<List<W
         { response ->
             val list = getWeatherByDays(response)
             daysList.value = list
+            currentDay.value = list[0]
             Log.d("MyLog", "Response: $response")
         },
         {
